@@ -56,7 +56,7 @@ func BrewCup(c *gin.Context) {
 	var cups CupParms
 	validate = validator.New()
 	validateCupParms()
-	//fmt.Println(cups)
+	fmt.Println(cups)
 	checkuserRequestID := c.MustGet("RequestId").(string)
 	msg.UserRequestID = checkuserRequestID
 	msg.Success = true

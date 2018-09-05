@@ -1,6 +1,6 @@
 # Coffee Maker API
 
-![](coffeemaker.png]
+![](https://github.com/todd1794/test/coffeemaker.png]
 
 This is a not complete. This is a first check.
 
@@ -16,4 +16,8 @@ go get -u github.com/Depado/ginprom
 go get -u github.com/cweill/gotests/...
 ```
 
+### Building
+
+go build coffeeMachine.go 
+./coffeeMachine
 
