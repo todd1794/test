@@ -1,8 +1,6 @@
 # Coffee Maker API
 
-![](https://github.com/todd1794/test/coffeemaker.png)
-
-This is a not complete. This is a first check.
+![](coffeemaker.png)
 
 
 ### Requirements
@@ -10,9 +8,7 @@ This is a not complete. This is a first check.
 ```
 go get github.com/gin-gonic/gin
 go get github.com/satori/go.uuid
-go get gopkg.in/go-playground/validator.v9
 go get -u github.com/Depado/ginprom
-go get -u github.com/cweill/gotests/...
 go get -u github.com/shenwei356/rush/
 ```
 
@@ -24,22 +20,27 @@ go build coffeeMachine.go
 ```
 
 
-### Make a cup
+### Start making a cup of coffee in 5 minutes on OSX
 
 ```
-curl -s -X POST localhost:8080/BrewCup
+curl -s -d '{"CupSize": 1, "CupBean": 2, "CupStrength": 3, "StartBrewTime": "'`date -v+5M -u +"%Y-%m-%dT%H:%M:%SZ"`'"}' localhost:8080/BrewCup | jq -C .
 ```
 
-### Make 1000 cups
+### Start making a cup of coffee in 5 minutes on Linux
 
 ```
-for a in `seq 1000`;do curl -s -X POST localhost:8080/BrewCup;done
+curl -s -d '{"CupSize": 1, "CupBean": 2, "CupStrength": 3, "StartBrewTime": "'`date +"%Y-%m-%dT%H:%M:%SZ" --date="5 minutes"`'"}' localhost:8080/BrewCup | jq -C .
 ```
 
-### Make 1000 cups at once
+### Add 1000 cups of two different type to the queue (Which won't finish in really life or will they?)
 
 ```
-seq 1000 | rush -j 1000 'curl -s -X POST localhost:8080/BrewCup'
+time seq 500 | rush -j 10 'curl -s -d '\'{\"Cups\": \[{\"CupSize\": 1, \"CupBean\": 2, \"CupStrength\": 3000, \"StartBrewTime\": \""`date -v+5M -u +"%Y-%m-%dT%H:%M:%SZ"`"\"},{\"CupSize\": 3, \"CupBean\": 1, \"CupStrength\": 6, \"StartBrewTime\": \""`date -v+5M -u +"%Y-%m-%dT%H:%M:%SZ"`"\"}\]}\'' localhost:8080/QueueRequest| jq -C .'
+```
+
+### Check the queue status 
+```
+curl -s localhost:8080/QueueStatus
 ```
 
 ### Scrape Metrics
