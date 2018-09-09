@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/Depado/ginprom"
+	//	"github.com/Depado/ginprom"
 	"github.com/gin-gonic/gin"
 	"github.com/satori/go.uuid"
 	"github.com/valinurovam/safequeue"
@@ -17,8 +17,8 @@ type UserError struct {
 }
 
 type BaseCallBack struct {
-	UserRequestID string     `json:"userrequestId"`
-	Success       bool       `json:"success"`
+	UserRequestID string     `json:"requestId"`
+	Success       bool       `json:"success,omitempty"`
 	Error         *UserError `json:",omitempty"`
 }
 
@@ -45,17 +45,23 @@ const SIZE = 4096
 var q = safequeue.NewSafeQueue(SIZE)
 
 func main() {
+	r := SetupRouter()
+	// Start server
+	r.Run()
+}
+func SetupRouter() *gin.Engine {
 	// Initialize router
 	r := gin.Default()
 	// Get the requestID from the HEADER
 	r.Use(RequestId())
+	// Turning off Prometheus because it is breaking coffeemaker_test.go
 	// Turn exporting of metrics via /metrics
-	p := ginprom.New(
-		ginprom.Engine(r),
-		ginprom.Subsystem("gin"),
-		ginprom.Path("/metrics"),
-	)
-	r.Use(p.Instrument())
+	//p := ginprom.New(
+	//	ginprom.Engine(r),
+	//	ginprom.Subsystem("gin"),
+	//	ginprom.Path("/metrics"),
+	//)
+	//r.Use(p.Instrument())
 
 	// Routes
 	r.GET("/QueueStatus", QueueStatus)
@@ -64,11 +70,8 @@ func main() {
 	r.POST("/QueuePause", QueuePause)
 	r.POST("/QueueCancel", QueueCancel)
 	r.POST("/QueueStart", QueueStart)
-
-	// Start server
-	r.Run()
+	return r
 }
-
 func BrewCup(c *gin.Context) {
 	var msg MessageTmp
 	msg.Success = true
@@ -89,12 +92,16 @@ func BrewCup(c *gin.Context) {
 }
 func QueueStatus(c *gin.Context) {
 	var msg MessageTmp
+	msg.Success = true
+	checkuserRequestID := c.MustGet("RequestId").(string)
+	msg.UserRequestID = checkuserRequestID
 	queueLength := q.Length()
 	for item := uint64(0); item < queueLength; item++ {
 		pop := q.Pop()
-		fmt.Printf("The value of pop is:=%+v\n", pop)
+		//fmt.Printf("The value of pop is:=%+v\n", pop)
 		q.Push(pop)
 	}
+	fmt.Println(queueLength)
 	c.JSON(http.StatusOK, msg)
 }
 func QueueRequest(c *gin.Context) {

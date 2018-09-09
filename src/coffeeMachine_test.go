@@ -1,161 +1,51 @@
-Generated Test_main
-Generated TestBrewCup
-Generated TestQueueRequest
-Generated TestQueueStatus
-Generated TestQueuePause
-Generated TestQueueCancel
-Generated TestQueueStart
-Generated TestRequestId
-Generated Test_validateCupParms
 package main
 
 import (
-	"reflect"
+	//"encoding/json"
+	//"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"net/http"
+	"net/http/httptest"
+	"regexp"
 	"testing"
-
-	"github.com/gin-gonic/gin"
 )
 
-func Test_main(t *testing.T) {
-	tests := []struct {
-		name string
-	}{
-		// TODO: Add test cases.
-	}
-	for range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			main()
-		})
-	}
+func performRequest(r http.Handler, method, path string) *httptest.ResponseRecorder {
+	req, _ := http.NewRequest(method, path, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	return w
 }
 
-func TestBrewCup(t *testing.T) {
-	type args struct {
-		c *gin.Context
-	}
-	tests := []struct {
-		name string
-		args args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			BrewCup(tt.args.c)
-		})
-	}
-}
-
-func TestQueueRequest(t *testing.T) {
-	type args struct {
-		c *gin.Context
-	}
-	tests := []struct {
-		name string
-		args args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			QueueRequest(tt.args.c)
-		})
-	}
+func IsValidUUID(uuid string) bool {
+	r := regexp.MustCompile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-4[a-fA-F0-9]{3}-[8|9|aA|bB][a-fA-F0-9]{3}-[a-fA-F0-9]{12}$")
+	return r.MatchString(uuid)
 }
 
 func TestQueueStatus(t *testing.T) {
-	type args struct {
-		c *gin.Context
-	}
-	tests := []struct {
-		name string
-		args args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			QueueStatus(tt.args.c)
-		})
-	}
+	//body := gin.H{
+	//	"success": true,
+	//}
+	r := SetupRouter()
+	// Perform a GET request with that handler.
+	w := performRequest(r, "GET", "/QueueStatus")
+	// Assert we encoded correctly,
+	// the request gives a 200
+	assert.Equal(t, http.StatusOK, w.Code)
+	// Convert the JSON response to a map
+	//var response map[string]string
+	//err := json.Unmarshal([]byte(w.Body.String()), &response)
+	// Grab the value & whether or not it exists
+	//value, exists := response["success"]
+	//assert.False(t, IsValidUUID(value))
+	// Make some assertions on the correctness of the response.
+	//assert.Nil(t, err)
+	//assert.True(t, exists)
+	//	assert.Equal(t, body["success"], "true")
 }
-
-func TestQueuePause(t *testing.T) {
-	type args struct {
-		c *gin.Context
-	}
-	tests := []struct {
-		name string
-		args args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			QueuePause(tt.args.c)
-		})
-	}
-}
-
-func TestQueueCancel(t *testing.T) {
-	type args struct {
-		c *gin.Context
-	}
-	tests := []struct {
-		name string
-		args args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			QueueCancel(tt.args.c)
-		})
-	}
-}
-
-func TestQueueStart(t *testing.T) {
-	type args struct {
-		c *gin.Context
-	}
-	tests := []struct {
-		name string
-		args args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			QueueStart(tt.args.c)
-		})
-	}
-}
-
-func TestRequestId(t *testing.T) {
-	tests := []struct {
-		name string
-		want gin.HandlerFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := RequestId(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("RequestId() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_validateCupParms(t *testing.T) {
-	tests := []struct {
-		name string
-	}{
-		// TODO: Add test cases.
-	}
-	for range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			validateCupParms()
-		})
-	}
+func TestQueueRequest(t *testing.T) {
+	// Assert we will get a 500 if NO json is passed to /QueueRequest (This is bad)
+	r := SetupRouter()
+	w := performRequest(r, "POST", "/QueueRequest")
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
