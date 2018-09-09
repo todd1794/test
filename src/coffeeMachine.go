@@ -5,41 +5,58 @@ import (
 	"github.com/Depado/ginprom"
 	"github.com/gin-gonic/gin"
 	"github.com/satori/go.uuid"
-	"gopkg.in/go-playground/validator.v9"
+	"github.com/valinurovam/safequeue"
 	"net/http"
 )
 
 // The base coffee machine has two different types of beans as a base.
 
+type UserError struct {
+	Code    int    `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
 type BaseCallBack struct {
-	UserRequestID string `json:"userrequestId"`
-	Success       bool   `json:"success"`
-	Error         struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	} `json:"error"`
+	UserRequestID string     `json:"userrequestId"`
+	Success       bool       `json:"success"`
+	Error         *UserError `json:",omitempty"`
 }
 
 type CupParms struct {
-	CupSize     int `validate:"required,max=3"`
-	CupBean     int `validate:"required,min=1,max=2"`
-	CupStrength int `validate:"required,min=1,max=5"`
+	StartBrewTime string `json:"startbrewtime,omitempty"`
+	CupSize       int    `json:"CupSize,omitempty"`
+	CupBean       int    `json:"CupBean,omitempty"`
+	CupStrength   int    `json:"CupStrength,omitempty"`
 }
 
-var validate *validator.Validate
+type Cups []CupParms
+
+type MessageTmp struct {
+	BaseCallBack
+	CupParms
+}
+type QueueRequestParms struct {
+	BaseCallBack
+	Cups
+}
+
+const SIZE = 4096
+
+var q = safequeue.NewSafeQueue(SIZE)
 
 func main() {
-
 	// Initialize router
 	r := gin.Default()
-	// Turn exporting of metrics via /metrics
+	// Get the requestID from the HEADER
 	r.Use(RequestId())
+	// Turn exporting of metrics via /metrics
 	p := ginprom.New(
 		ginprom.Engine(r),
 		ginprom.Subsystem("gin"),
 		ginprom.Path("/metrics"),
 	)
 	r.Use(p.Instrument())
+
 	// Routes
 	r.GET("/QueueStatus", QueueStatus)
 	r.POST("/BrewCup", BrewCup)
@@ -51,67 +68,69 @@ func main() {
 	// Start server
 	r.Run()
 }
+
 func BrewCup(c *gin.Context) {
-	var msg BaseCallBack
-	var cups CupParms
-	validate = validator.New()
-	validateCupParms()
-	fmt.Println(cups)
+	var msg MessageTmp
+	msg.Success = true
 	checkuserRequestID := c.MustGet("RequestId").(string)
 	msg.UserRequestID = checkuserRequestID
-	msg.Success = true
-	c.IndentedJSON(http.StatusOK, msg)
-}
-func QueueRequest(c *gin.Context) {
-	var msg BaseCallBack
-	var cups CupParms
-	validate = validator.New()
-	validateCupParms()
-	fmt.Println(cups)
-	checkuserRequestID := c.MustGet("RequestId").(string)
-	msg.UserRequestID = checkuserRequestID
-	msg.Success = true
-	c.IndentedJSON(http.StatusOK, msg)
+	if err := c.ShouldBindJSON(&msg); err != nil {
+		msg.Success = false
+		msg.Error.Code = 1
+		msg.Error.Message = "Please provide a JSON string describing the type of coffee you would like"
+		c.JSON(http.StatusBadRequest, msg)
+		return
+	}
+
+	// Add to queue
+	q.Push(msg)
+
+	c.JSON(http.StatusOK, msg)
 }
 func QueueStatus(c *gin.Context) {
-	var msg BaseCallBack
-	var cups CupParms
-	validate = validator.New()
-	validateCupParms()
-	fmt.Println(cups)
+	var msg MessageTmp
+	queueLength := q.Length()
+	for item := uint64(0); item < queueLength; item++ {
+		pop := q.Pop()
+		fmt.Printf("The value of pop is:=%+v\n", pop)
+		q.Push(pop)
+	}
+	c.JSON(http.StatusOK, msg)
+}
+func QueueRequest(c *gin.Context) {
+	var msg QueueRequestParms
 	checkuserRequestID := c.MustGet("RequestId").(string)
 	msg.UserRequestID = checkuserRequestID
 	msg.Success = true
-	c.IndentedJSON(http.StatusOK, msg)
+	if err := c.ShouldBindJSON(&msg); err != nil {
+		msg.Success = false
+		msg.Error.Code = 2
+		msg.Error.Message = "Please provide a JSON string describing the type of coffee you would like"
+		c.JSON(http.StatusBadRequest, msg)
+		return
+	}
+	// Add to queue
+	q.Push(msg)
+
+	c.JSON(http.StatusOK, msg)
 }
+
 func QueuePause(c *gin.Context) {
-	var msg BaseCallBack
-	var cups CupParms
-	validate = validator.New()
-	validateCupParms()
-	fmt.Println(cups)
+	var msg MessageTmp
 	checkuserRequestID := c.MustGet("RequestId").(string)
 	msg.UserRequestID = checkuserRequestID
 	msg.Success = true
 	c.IndentedJSON(http.StatusOK, msg)
 }
 func QueueCancel(c *gin.Context) {
-	var msg BaseCallBack
-	var cups CupParms
-	validate = validator.New()
-	validateCupParms()
-	fmt.Println(cups)
+	var msg MessageTmp
 	checkuserRequestID := c.MustGet("RequestId").(string)
 	msg.UserRequestID = checkuserRequestID
 	msg.Success = true
 	c.IndentedJSON(http.StatusOK, msg)
 }
 func QueueStart(c *gin.Context) {
-	var msg BaseCallBack
-	var cups CupParms
-	validate = validator.New()
-	validateCupParms()
-	fmt.Println(cups)
+	var msg MessageTmp
 	checkuserRequestID := c.MustGet("RequestId").(string)
 	msg.UserRequestID = checkuserRequestID
 	msg.Success = true
@@ -137,21 +156,4 @@ func RequestId() gin.HandlerFunc {
 		c.Writer.Header().Set("X-Request-Id", requestID)
 		c.Next()
 	}
-}
-
-func validateCupParms() {
-
-	cupparms := &CupParms{
-		CupSize:     1,
-		CupBean:     1,
-		CupStrength: 4,
-	}
-
-	errs := validate.Var(cupparms, "required")
-
-	if errs != nil {
-		fmt.Println(errs)
-		return
-	}
-
 }
